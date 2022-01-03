@@ -1,4 +1,7 @@
-import { ChangeEventHandler, InputHTMLAttributes, useState, VFC } from 'react';
+import {
+  ChangeEventHandler, useState,
+  VFC
+} from 'react';
 import Button from '../../components/Button';
 import Input from '../../components/Input';
 import styles from './entername.module.css';
