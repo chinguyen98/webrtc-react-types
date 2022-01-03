@@ -1,6 +1,8 @@
 import { createContext, FC, useState } from 'react';
 
 export interface IAppContext {
+  ownUsername: string | null;
+  setOwnUsername: (value: string | null) => void;
   isAudioReady: boolean;
   setIsAudioReady: (value: boolean) => void;
   isVideoReady: boolean;
@@ -12,6 +14,7 @@ export const AppContext = createContext<IAppContext | null>(null);
 const AppContextProvider: FC = ({ children }) => {
   const [isAudioReady, setIsAudioReady] = useState<boolean>(false);
   const [isVideoReady, setIsVideoReady] = useState<boolean>(false);
+  const [ownUsername, setOwnUsername] = useState<string | null>(null);
 
   return (
     <AppContext.Provider
@@ -20,6 +23,8 @@ const AppContextProvider: FC = ({ children }) => {
         isVideoReady,
         setIsAudioReady,
         setIsVideoReady,
+        ownUsername,
+        setOwnUsername,
       }}
     >
       {children}
