@@ -1,7 +1,13 @@
-import React from 'react';
+import { FC } from 'react';
+import styles from './app.module.css';
+import EnterNamePage from './pages/EnterNamePage';
 
-function App() {
-  return <div className="App">Webrtc</div>;
-}
+const App: FC = () => {
+  return (
+    <div className={styles['app']}>
+      <EnterNamePage />
+    </div>
+  );
+};
 
 export default App;

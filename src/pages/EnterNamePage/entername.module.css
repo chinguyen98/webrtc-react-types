@@ -1,0 +1,12 @@
+.enter-name{
+  width: 500px;
+  height: fit-content;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+}
+
+.enter-name h1 {
+  color: white;
+}
