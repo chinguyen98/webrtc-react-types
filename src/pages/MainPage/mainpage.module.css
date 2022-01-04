@@ -1,0 +1,13 @@
+.video-container {
+  display: flex;
+}
+
+.video-container video {
+  border: 1px solid red;
+  margin: 0 5px;
+  background-color: black;
+}
+
+.video-container h1 {
+  color: white;
+}
