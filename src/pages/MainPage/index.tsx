@@ -1,19 +1,23 @@
+import { collection, Firestore, getDocs } from 'firebase/firestore';
 import { useEffect, useRef, useState, VFC } from 'react';
+import Button from '../../components/Button';
 import StreamVideo from '../../components/StreamVideo';
 import { __iceCandidatePoolSize__, __iceServers__ } from '../../config';
 import { LOCAL_STREAM_ID, REMOTE_STREAM_ID } from '../../constants';
+import { initFirebase } from '../../firebaseApp';
 import useAppContext from '../../hooks/useAppContext';
 import styles from './mainpage.module.css';
 
 const MainPage: VFC = () => {
   const [isMediaReady, setIsMediaReady] = useState<boolean | null>(null);
+  const [db, setDb] = useState<Firestore | null>(null);
 
   const localStream = useRef<MediaStream | null>(null);
   const remoteStream = useRef<MediaStream | null>(null);
 
   const { setPc, pc, ownUsername } = useAppContext();
 
-  /* Check user media permission! */
+  /* Check user media permission and init two stream refs! */
   useEffect(() => {
     (async () => {
       try {
@@ -21,7 +25,7 @@ const MainPage: VFC = () => {
           audio: true,
           video: true,
         });
-        console.log('Got local media stream!', stream);
+        console.info('Got local media stream!', stream);
         setIsMediaReady(true);
         localStream.current = stream;
         remoteStream.current = new MediaStream();
@@ -30,6 +34,12 @@ const MainPage: VFC = () => {
         setIsMediaReady(false);
       }
     })();
+  }, []);
+
+  /* Init connect to firestore */
+  useEffect(() => {
+    const fireStoreDb = initFirebase() as Firestore;
+    setDb(fireStoreDb);
   }, []);
 
   /* Init webrtc pc when media all ready! */
@@ -69,6 +79,13 @@ const MainPage: VFC = () => {
     }
   }, [pc]);
 
+  const startCall = async () => {
+    const callsQuerySnap = await getDocs(collection(db as Firestore, 'calls'));
+    callsQuerySnap.forEach((doc) => {
+      console.log(doc.data());
+    });
+  };
+
   if (isMediaReady === null) {
     return <>Loading....</>;
   }
@@ -78,9 +95,14 @@ const MainPage: VFC = () => {
   }
 
   return (
-    <div className={styles['video-container']}>
-      <StreamVideo id={LOCAL_STREAM_ID} displayName={ownUsername} />
-      <StreamVideo id={REMOTE_STREAM_ID} displayName="&nspb;" />
+    <div className={styles['mainpage']}>
+      <div className={styles['video-container']}>
+        <StreamVideo id={LOCAL_STREAM_ID} displayName={ownUsername} />
+        <StreamVideo id={REMOTE_STREAM_ID} displayName="&nbsp;" />
+      </div>
+      <div style={{ width: '100px', marginTop: '5px' }}>
+        <Button onClick={startCall} value="Start call!" />
+      </div>
     </div>
   );
 };
