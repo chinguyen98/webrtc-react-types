@@ -1,5 +1,6 @@
-import { collection, Firestore, getDocs } from 'firebase/firestore';
+import { addDoc, collection, Firestore, getDocs } from 'firebase/firestore';
 import { useEffect, useRef, useState, VFC } from 'react';
+import { Calls } from '../../collections/Calls';
 import Button from '../../components/Button';
 import StreamVideo from '../../components/StreamVideo';
 import { __iceCandidatePoolSize__, __iceServers__ } from '../../config';
@@ -68,7 +69,7 @@ const MainPage: VFC = () => {
     }
   }, [pc, localStream.current]);
 
-  /* Set up pc callback */
+  /* Get tracks from remote stream! */
   useEffect(() => {
     if (pc) {
       pc.ontrack = (e) => {
@@ -79,11 +80,23 @@ const MainPage: VFC = () => {
     }
   }, [pc]);
 
+  /* Apply remote tracks to remote video! */
+  useEffect(() => {
+    const remoteVideo = document.querySelector<HTMLVideoElement>(
+      `#${REMOTE_STREAM_ID}`
+    );
+    if (remoteVideo) {
+      remoteVideo.srcObject = remoteStream.current;
+    }
+  }, []);
+
   const startCall = async () => {
-    const callsQuerySnap = await getDocs(collection(db as Firestore, 'calls'));
-    callsQuerySnap.forEach((doc) => {
-      console.log(doc.data());
-    });
+    const callRef = await addDoc(
+      collection(db as Firestore, 'calls'),
+      {
+        
+      } as Calls
+    );
   };
 
   if (isMediaReady === null) {
