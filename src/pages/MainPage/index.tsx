@@ -1,4 +1,11 @@
-import { addDoc, collection, Firestore, getDocs } from 'firebase/firestore';
+import {
+  addDoc,
+  collection,
+  doc,
+  Firestore,
+  getDocs,
+  setDoc,
+} from 'firebase/firestore';
 import { useEffect, useRef, useState, VFC } from 'react';
 import { Calls } from '../../collections/Calls';
 import Button from '../../components/Button';
@@ -12,6 +19,7 @@ import styles from './mainpage.module.css';
 const MainPage: VFC = () => {
   const [isMediaReady, setIsMediaReady] = useState<boolean | null>(null);
   const [db, setDb] = useState<Firestore | null>(null);
+  const [callId, setCallId] = useState<string | null>(null);
 
   const localStream = useRef<MediaStream | null>(null);
   const remoteStream = useRef<MediaStream | null>(null);
@@ -41,6 +49,16 @@ const MainPage: VFC = () => {
   useEffect(() => {
     const fireStoreDb = initFirebase() as Firestore;
     setDb(fireStoreDb);
+  }, []);
+
+  /* Apply remote tracks to remote video! */
+  useEffect(() => {
+    const remoteVideo = document.querySelector<HTMLVideoElement>(
+      `#${REMOTE_STREAM_ID}`
+    );
+    if (remoteVideo) {
+      remoteVideo.srcObject = remoteStream.current;
+    }
   }, []);
 
   /* Init webrtc pc when media all ready! */
@@ -80,23 +98,13 @@ const MainPage: VFC = () => {
     }
   }, [pc]);
 
-  /* Apply remote tracks to remote video! */
-  useEffect(() => {
-    const remoteVideo = document.querySelector<HTMLVideoElement>(
-      `#${REMOTE_STREAM_ID}`
-    );
-    if (remoteVideo) {
-      remoteVideo.srcObject = remoteStream.current;
-    }
-  }, []);
-
   const startCall = async () => {
-    const callRef = await addDoc(
-      collection(db as Firestore, 'calls'),
-      {
-        
-      } as Calls
-    );
+    const docRef = await addDoc(collection(db as Firestore, "calls"), {
+      answerCandidates: '123',
+      offerCandidates: '444',
+    } as Calls);
+
+    setCallId(docRef.id);
   };
 
   if (isMediaReady === null) {
@@ -112,6 +120,9 @@ const MainPage: VFC = () => {
       <div className={styles['video-container']}>
         <StreamVideo id={LOCAL_STREAM_ID} displayName={ownUsername} />
         <StreamVideo id={REMOTE_STREAM_ID} displayName="&nbsp;" />
+      </div>
+      <div className={styles['callId']}>
+        {callId}
       </div>
       <div style={{ width: '100px', marginTop: '5px' }}>
         <Button onClick={startCall} value="Start call!" />
