@@ -1,4 +1,4 @@
-import { collection, doc, Firestore, setDoc } from 'firebase/firestore';
+import { collection, doc, Firestore, onSnapshot, setDoc } from 'firebase/firestore';
 import { useEffect, useRef, useState, VFC } from 'react';
 import Button from '../../components/Button';
 import StreamVideo from '../../components/StreamVideo';
@@ -95,14 +95,22 @@ const MainPage: VFC = () => {
     const callDocRef = doc(
       collection(db as Firestore, FIREBASE_COLLECTIONS.CALLS)
     );
-    const offerCandidateDocRef = doc(
-      collection(
-        db as Firestore,
-        FIREBASE_COLLECTIONS.CALLS,
-        callDocRef.id,
-        FIREBASE_COLLECTIONS.OFFER_CANDIDATE
-      )
+    const offerCandidateCollection = collection(
+      db as Firestore,
+      FIREBASE_COLLECTIONS.CALLS,
+      callDocRef.id,
+      FIREBASE_COLLECTIONS.OFFER_CANDIDATE
     );
+
+    /* Get offer candidates and save */
+    if (pc) {
+      pc.onicecandidate = async (event: RTCPeerConnectionIceEvent) => {
+        if (event.candidate) {
+          const offerCandidateDocRef = doc(offerCandidateCollection);
+          await setDoc(offerCandidateDocRef, event.candidate.toJSON());
+        }
+      }
+    }
 
     /* Create offer */
     const offerDescription = await pc?.createOffer();
@@ -113,11 +121,18 @@ const MainPage: VFC = () => {
       type: offerDescription?.type,
     };
 
-    await setDoc(offerCandidateDocRef, jsep);
+    await setDoc(callDocRef, jsep);
 
     setCallId(callDocRef.id);
 
     /* Listen for remote answer */
+    const unsub = onSnapshot(callDocRef, (snapshot) => {
+      const data = snapshot.data();
+      if (!pc?.currentRemoteDescription && data?.answer) {
+        const answerDescription = new RTCSessionDescription(data.answer);
+        pc?.setRemoteDescription(answerDescription);
+      }
+    });
 
     alert('done');
   };
