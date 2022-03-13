@@ -1,17 +1,10 @@
-import {
-  addDoc,
-  collection,
-  doc,
-  Firestore,
-  getDocs,
-  setDoc,
-} from 'firebase/firestore';
+import { collection, doc, Firestore, setDoc } from 'firebase/firestore';
 import { useEffect, useRef, useState, VFC } from 'react';
-import { Calls } from '../../collections/Calls';
 import Button from '../../components/Button';
 import StreamVideo from '../../components/StreamVideo';
 import { __iceCandidatePoolSize__, __iceServers__ } from '../../config';
 import { LOCAL_STREAM_ID, REMOTE_STREAM_ID } from '../../constants';
+import { FIREBASE_COLLECTIONS } from '../../constants/firebaseCollection';
 import { initFirebase } from '../../firebaseApp';
 import useAppContext from '../../hooks/useAppContext';
 import styles from './mainpage.module.css';
@@ -99,12 +92,34 @@ const MainPage: VFC = () => {
   }, [pc]);
 
   const startCall = async () => {
-    const docRef = await addDoc(collection(db as Firestore, "calls"), {
-      answerCandidates: '123',
-      offerCandidates: '444',
-    } as Calls);
+    const callDocRef = doc(
+      collection(db as Firestore, FIREBASE_COLLECTIONS.CALLS)
+    );
+    const offerCandidateDocRef = doc(
+      collection(
+        db as Firestore,
+        FIREBASE_COLLECTIONS.CALLS,
+        callDocRef.id,
+        FIREBASE_COLLECTIONS.OFFER_CANDIDATE
+      )
+    );
 
-    setCallId(docRef.id);
+    /* Create offer */
+    const offerDescription = await pc?.createOffer();
+    await pc?.setLocalDescription(offerDescription);
+
+    const jsep = {
+      sdp: offerDescription?.sdp,
+      type: offerDescription?.type,
+    };
+
+    await setDoc(offerCandidateDocRef, jsep);
+
+    setCallId(callDocRef.id);
+
+    /* Listen for remote answer */
+
+    alert('done');
   };
 
   if (isMediaReady === null) {
@@ -121,9 +136,7 @@ const MainPage: VFC = () => {
         <StreamVideo id={LOCAL_STREAM_ID} displayName={ownUsername} />
         <StreamVideo id={REMOTE_STREAM_ID} displayName="&nbsp;" />
       </div>
-      <div className={styles['callId']}>
-        {callId}
-      </div>
+      <div className={styles['callId']}>{callId}</div>
       <div style={{ width: '100px', marginTop: '5px' }}>
         <Button onClick={startCall} value="Start call!" />
       </div>
