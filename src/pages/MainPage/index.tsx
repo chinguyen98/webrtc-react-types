@@ -1,4 +1,10 @@
-import { collection, doc, Firestore, onSnapshot, setDoc } from 'firebase/firestore';
+import {
+  collection,
+  doc,
+  Firestore,
+  onSnapshot,
+  setDoc,
+} from 'firebase/firestore';
 import { useEffect, useRef, useState, VFC } from 'react';
 import Button from '../../components/Button';
 import StreamVideo from '../../components/StreamVideo';
@@ -40,7 +46,7 @@ const MainPage: VFC = () => {
 
   /* Init connect to firestore */
   useEffect(() => {
-    const fireStoreDb = initFirebase() as Firestore;
+    const fireStoreDb: Firestore = initFirebase() as Firestore;
     setDb(fireStoreDb);
   }, []);
 
@@ -109,7 +115,7 @@ const MainPage: VFC = () => {
           const offerCandidateDocRef = doc(offerCandidateCollection);
           await setDoc(offerCandidateDocRef, event.candidate.toJSON());
         }
-      }
+      };
     }
 
     /* Create offer */
