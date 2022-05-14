@@ -29,7 +29,7 @@ const MainPage: VFC = () => {
   useEffect(() => {
     (async () => {
       try {
-        const stream = await navigator.mediaDevices.getUserMedia({
+        const stream: MediaStream = await navigator.mediaDevices.getUserMedia({
           audio: true,
           video: true,
         });
@@ -132,10 +132,10 @@ const MainPage: VFC = () => {
     setCallId(callDocRef.id);
 
     /* Listen for remote answer */
-    const unsub = onSnapshot(callDocRef, (snapshot) => {
+    onSnapshot(callDocRef, (snapshot) => {
       const data = snapshot.data();
-      if (!pc?.currentRemoteDescription && data?.answer) {
-        const answerDescription = new RTCSessionDescription(data.answer);
+      if (!pc?.currentRemoteDescription && data?.answerCandidates) {
+        const answerDescription = new RTCSessionDescription(data.answerCandidates);
         pc?.setRemoteDescription(answerDescription);
       }
     });
