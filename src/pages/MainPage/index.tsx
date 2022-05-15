@@ -1,4 +1,4 @@
-import { Modal, Input, Form } from 'antd';
+import { Form, Input, Modal } from 'antd';
 import {
   collection,
   doc,
@@ -6,7 +6,7 @@ import {
   getDoc,
   onSnapshot,
   setDoc,
-  updateDoc,
+  updateDoc
 } from 'firebase/firestore';
 import { useEffect, useRef, useState, VFC } from 'react';
 import Button from '../../components/Button';
@@ -16,7 +16,7 @@ import { LOCAL_STREAM_ID, REMOTE_STREAM_ID } from '../../constants';
 import { FIREBASE_COLLECTIONS } from '../../constants/firebaseCollection';
 import { initFirebase } from '../../firebaseApp';
 import useAppContext from '../../hooks/useAppContext';
-import { CALL_DESCRIPTION, JSEP } from '../../types';
+import { CALL_DESCRIPTION, CALL_STATUS } from '../../types';
 import styles from './mainpage.module.css';
 
 const MainPage: VFC = () => {
@@ -26,6 +26,7 @@ const MainPage: VFC = () => {
   const [isPrepareJoinCallModalOpen, setIsPreareJoinCallModalOpen] =
     useState<boolean>(false);
   const [isCheckingRoomId, setIsCheckingRoomId] = useState(false);
+  const [callingStatus, setCallingStatus] = useState<CALL_STATUS>('idle');
 
   const localStream = useRef<MediaStream | null>(null);
   const remoteStream = useRef<MediaStream | null>(null);
@@ -59,16 +60,6 @@ const MainPage: VFC = () => {
     setDb(fireStoreDb);
   }, []);
 
-  /* Apply remote tracks to remote video! */
-  useEffect(() => {
-    const remoteVideo = document.querySelector<HTMLVideoElement>(
-      `#${REMOTE_STREAM_ID}`
-    );
-    if (remoteVideo) {
-      remoteVideo.srcObject = remoteStream.current;
-    }
-  }, []);
-
   /* Init webrtc pc when media all ready! */
   useEffect(() => {
     if (isMediaReady) {
@@ -95,16 +86,22 @@ const MainPage: VFC = () => {
     }
   }, [pc, localStream.current]);
 
-  /* Get tracks from remote stream! */
+  /* Set up remote stream! */
   useEffect(() => {
-    if (pc) {
-      pc.ontrack = (e) => {
-        e.streams[0].getTracks().forEach((track) => {
-          remoteStream.current?.addTrack(track);
-        });
-      };
+    if (pc && remoteStream.current) {
+      const remoteVideo = document.querySelector<HTMLVideoElement>(
+        `#${REMOTE_STREAM_ID}`
+      );
+      if (remoteVideo) {
+        remoteVideo.srcObject = remoteStream.current;
+        pc.ontrack = (e) => {
+          e.streams[0].getTracks().forEach((track) => {
+            remoteStream.current?.addTrack(track);
+          });
+        };
+      }
     }
-  }, [pc]);
+  }, [pc, remoteStream.current]);
 
   const startCall = async () => {
     const callCollection = collection(
