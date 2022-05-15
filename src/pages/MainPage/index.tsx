@@ -3,6 +3,7 @@ import {
   collection,
   doc,
   Firestore,
+  getDoc,
   onSnapshot,
   setDoc,
 } from 'firebase/firestore';
@@ -14,6 +15,7 @@ import { LOCAL_STREAM_ID, REMOTE_STREAM_ID } from '../../constants';
 import { FIREBASE_COLLECTIONS } from '../../constants/firebaseCollection';
 import { initFirebase } from '../../firebaseApp';
 import useAppContext from '../../hooks/useAppContext';
+import { JSEP } from '../../types';
 import styles from './mainpage.module.css';
 
 const MainPage: VFC = () => {
@@ -22,6 +24,7 @@ const MainPage: VFC = () => {
   const [callId, setCallId] = useState<string | null>(null);
   const [isPrepareJoinCallModalOpen, setIsPreareJoinCallModalOpen] =
     useState<boolean>(false);
+  const [isCheckingRoomId, setIsCheckingRoomId] = useState(false);
 
   const localStream = useRef<MediaStream | null>(null);
   const remoteStream = useRef<MediaStream | null>(null);
@@ -127,7 +130,7 @@ const MainPage: VFC = () => {
     const offerDescription = await pc?.createOffer();
     await pc?.setLocalDescription(offerDescription);
 
-    const jsep = {
+    const jsep: JSEP = {
       sdp: offerDescription?.sdp,
       type: offerDescription?.type,
     };
@@ -150,14 +153,31 @@ const MainPage: VFC = () => {
     alert('done');
   };
 
-  const joinCall = async () => {};
-
   const prepareJoinCall = async () => {
     setIsPreareJoinCallModalOpen(true);
   };
 
-  const handleSubmit = ({ callId }: { callId: string }) => {
-    console.log({ callId });
+  const joinCall = async ({ roomIdToJoin }: { roomIdToJoin: string }) => {
+    try {
+      setIsCheckingRoomId(true);
+      console.log({ roomIdToJoin });
+      const docRef = doc(
+        db as Firestore,
+        FIREBASE_COLLECTIONS.CALLS,
+        roomIdToJoin
+      );
+      const docSnap = await getDoc(docRef);
+      if (docSnap.exists()) {
+        const jsep: JSEP = docSnap.data();
+        console.log(jsep.sdp, jsep.type);
+      } else {
+        console.log('Not found!');
+      }
+      setIsCheckingRoomId(false);
+    } catch (err) {
+      console.log({ err });
+      setIsCheckingRoomId(false);
+    }
   };
 
   if (isMediaReady === null) {
@@ -189,10 +209,11 @@ const MainPage: VFC = () => {
         onCancel={() => {
           setIsPreareJoinCallModalOpen(false);
         }}
+        confirmLoading={isCheckingRoomId}
       >
-        <Form form={form} onFinish={handleSubmit}>
+        <Form form={form} onFinish={joinCall}>
           <div>Enter room id: </div>
-          <Form.Item name="callId">
+          <Form.Item name="roomIdToJoin">
             <Input />
           </Form.Item>
         </Form>
