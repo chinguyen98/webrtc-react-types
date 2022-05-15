@@ -1,3 +1,4 @@
+import { Modal, Input, Form } from 'antd';
 import {
   collection,
   doc,
@@ -19,11 +20,15 @@ const MainPage: VFC = () => {
   const [isMediaReady, setIsMediaReady] = useState<boolean | null>(null);
   const [db, setDb] = useState<Firestore | null>(null);
   const [callId, setCallId] = useState<string | null>(null);
+  const [isPrepareJoinCallModalOpen, setIsPreareJoinCallModalOpen] =
+    useState<boolean>(false);
 
   const localStream = useRef<MediaStream | null>(null);
   const remoteStream = useRef<MediaStream | null>(null);
 
   const { setPc, pc, ownUsername } = useAppContext();
+
+  const [form] = Form.useForm();
 
   /* Check user media permission and init two stream refs! */
   useEffect(() => {
@@ -135,12 +140,24 @@ const MainPage: VFC = () => {
     onSnapshot(callDocRef, (snapshot) => {
       const data = snapshot.data();
       if (!pc?.currentRemoteDescription && data?.answerCandidates) {
-        const answerDescription = new RTCSessionDescription(data.answerCandidates);
+        const answerDescription = new RTCSessionDescription(
+          data.answerCandidates
+        );
         pc?.setRemoteDescription(answerDescription);
       }
     });
 
     alert('done');
+  };
+
+  const joinCall = async () => {};
+
+  const prepareJoinCall = async () => {
+    setIsPreareJoinCallModalOpen(true);
+  };
+
+  const handleSubmit = ({ callId }: { callId: string }) => {
+    console.log({ callId });
   };
 
   if (isMediaReady === null) {
@@ -152,16 +169,35 @@ const MainPage: VFC = () => {
   }
 
   return (
-    <div className={styles['mainpage']}>
-      <div className={styles['video-container']}>
-        <StreamVideo id={LOCAL_STREAM_ID} displayName={ownUsername} />
-        <StreamVideo id={REMOTE_STREAM_ID} displayName="&nbsp;" />
+    <>
+      <div className={styles['mainpage']}>
+        <div className={styles['video-container']}>
+          <StreamVideo id={LOCAL_STREAM_ID} displayName={ownUsername} />
+          <StreamVideo id={REMOTE_STREAM_ID} displayName="&nbsp;" />
+        </div>
+        <div className={styles['callId']}>{callId}</div>
+        <div style={{ width: '100px', marginTop: '5px' }}>
+          <Button onClick={startCall} value="Start call!" />
+        </div>
+        <div style={{ width: '100px', marginTop: '5px' }}>
+          <Button onClick={prepareJoinCall} value="Join call" />
+        </div>
       </div>
-      <div className={styles['callId']}>{callId}</div>
-      <div style={{ width: '100px', marginTop: '5px' }}>
-        <Button onClick={startCall} value="Start call!" />
-      </div>
-    </div>
+      <Modal
+        visible={isPrepareJoinCallModalOpen}
+        onOk={form.submit}
+        onCancel={() => {
+          setIsPreareJoinCallModalOpen(false);
+        }}
+      >
+        <Form form={form} onFinish={handleSubmit}>
+          <div>Enter room id: </div>
+          <Form.Item name="callId">
+            <Input />
+          </Form.Item>
+        </Form>
+      </Modal>
+    </>
   );
 };
 
