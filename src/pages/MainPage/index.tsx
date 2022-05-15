@@ -6,6 +6,7 @@ import {
   getDoc,
   onSnapshot,
   setDoc,
+  updateDoc,
 } from 'firebase/firestore';
 import { useEffect, useRef, useState, VFC } from 'react';
 import Button from '../../components/Button';
@@ -15,7 +16,7 @@ import { LOCAL_STREAM_ID, REMOTE_STREAM_ID } from '../../constants';
 import { FIREBASE_COLLECTIONS } from '../../constants/firebaseCollection';
 import { initFirebase } from '../../firebaseApp';
 import useAppContext from '../../hooks/useAppContext';
-import { JSEP } from '../../types';
+import { CALL_DESCRIPTION, JSEP } from '../../types';
 import styles from './mainpage.module.css';
 
 const MainPage: VFC = () => {
@@ -106,9 +107,12 @@ const MainPage: VFC = () => {
   }, [pc]);
 
   const startCall = async () => {
-    const callDocRef = doc(
-      collection(db as Firestore, FIREBASE_COLLECTIONS.CALLS)
+    const callCollection = collection(
+      db as Firestore,
+      FIREBASE_COLLECTIONS.CALLS
     );
+    const callDocRef = doc(callCollection);
+
     const offerCandidateCollection = collection(
       db as Firestore,
       FIREBASE_COLLECTIONS.CALLS,
@@ -116,64 +120,131 @@ const MainPage: VFC = () => {
       FIREBASE_COLLECTIONS.OFFER_CANDIDATE
     );
 
-    /* Get offer candidates and save */
+    const answerCandidateCollection = collection(
+      db as Firestore,
+      FIREBASE_COLLECTIONS.CALLS,
+      callDocRef.id,
+      FIREBASE_COLLECTIONS.ANSWER_CANDIDATE
+    );
+
     if (pc) {
+      /* Listen offer candidates and save */
       pc.onicecandidate = async (event: RTCPeerConnectionIceEvent) => {
         if (event.candidate) {
           const offerCandidateDocRef = doc(offerCandidateCollection);
           await setDoc(offerCandidateDocRef, event.candidate.toJSON());
         }
       };
+
+      /* Create offer */
+      const offerDescription = await pc.createOffer();
+      await pc.setLocalDescription(offerDescription);
+      const jsep: RTCSessionDescriptionInit = {
+        sdp: offerDescription?.sdp,
+        type: offerDescription.type,
+      };
+      const callDescription: CALL_DESCRIPTION = {
+        offerDescription: jsep,
+      };
+      await setDoc(callDocRef, callDescription);
+
+      /* Listen answer description and set to remote description */
+      onSnapshot(callDocRef, (observe) => {
+        const data: CALL_DESCRIPTION | undefined = observe.data();
+        if (data?.answerDescription && !pc?.currentRemoteDescription) {
+          const answerDescription = new RTCSessionDescription(
+            data.answerDescription
+          );
+          pc.setRemoteDescription(answerDescription);
+        }
+      });
+
+      /* Listen remote ice candidate */
+      onSnapshot(answerCandidateCollection, (observe) => {
+        observe.docChanges().forEach((change) => {
+          if (change.type === 'added') {
+            const candidate = new RTCIceCandidate(change.doc.data());
+            pc.addIceCandidate(candidate);
+          }
+        });
+      });
+
+      setCallId(callDocRef.id);
     }
-
-    /* Create offer */
-    const offerDescription = await pc?.createOffer();
-    await pc?.setLocalDescription(offerDescription);
-
-    const jsep: JSEP = {
-      sdp: offerDescription?.sdp,
-      type: offerDescription?.type,
-    };
-
-    await setDoc(callDocRef, jsep);
-
-    setCallId(callDocRef.id);
-
-    /* Listen for remote answer */
-    onSnapshot(callDocRef, (snapshot) => {
-      const data = snapshot.data();
-      if (!pc?.currentRemoteDescription && data?.answerCandidates) {
-        const answerDescription = new RTCSessionDescription(
-          data.answerCandidates
-        );
-        pc?.setRemoteDescription(answerDescription);
-      }
-    });
-
-    alert('done');
   };
 
   const prepareJoinCall = async () => {
     setIsPreareJoinCallModalOpen(true);
+    form.resetFields();
   };
 
   const joinCall = async ({ roomIdToJoin }: { roomIdToJoin: string }) => {
     try {
       setIsCheckingRoomId(true);
-      console.log({ roomIdToJoin });
-      const docRef = doc(
+      const roomRef = doc(
         db as Firestore,
         FIREBASE_COLLECTIONS.CALLS,
         roomIdToJoin
       );
-      const docSnap = await getDoc(docRef);
-      if (docSnap.exists()) {
-        const jsep: JSEP = docSnap.data();
-        console.log(jsep.sdp, jsep.type);
+      const roomSnap = await getDoc(roomRef);
+      if (roomSnap.exists()) {
+        const callDescription: CALL_DESCRIPTION = roomSnap.data();
+        const answerCandidateCollection = collection(
+          db as Firestore,
+          FIREBASE_COLLECTIONS.CALLS,
+          roomIdToJoin,
+          FIREBASE_COLLECTIONS.ANSWER_CANDIDATE
+        );
+        const offerCandidateCollection = collection(
+          db as Firestore,
+          FIREBASE_COLLECTIONS.CALLS,
+          roomIdToJoin,
+          FIREBASE_COLLECTIONS.OFFER_CANDIDATE
+        );
+
+        if (pc) {
+          /* Add ice candidate */
+          pc.onicecandidate = async (event) => {
+            if (event?.candidate) {
+              const answerCandidateDocRef = doc(answerCandidateCollection);
+              await setDoc(answerCandidateDocRef, event.candidate.toJSON());
+            }
+          };
+
+          await pc.setRemoteDescription(
+            new RTCSessionDescription(
+              callDescription.offerDescription as RTCSessionDescriptionInit
+            )
+          );
+
+          const answerDescription = await pc.createAnswer();
+          await pc.setLocalDescription(answerDescription);
+
+          const jsep: RTCSessionDescriptionInit = {
+            sdp: answerDescription?.sdp,
+            type: answerDescription.type,
+          };
+
+          const updateData: CALL_DESCRIPTION = {
+            answerDescription: jsep,
+          };
+
+          await updateDoc(roomRef, updateData);
+
+          /* Listen remote ice candidate */
+          onSnapshot(offerCandidateCollection, (observe) => {
+            observe.docChanges().forEach((change) => {
+              if (change.type === 'added') {
+                const candidate = new RTCIceCandidate(change.doc.data());
+                pc.addIceCandidate(candidate);
+              }
+            });
+          });
+        }
       } else {
+        setIsCheckingRoomId(false);
         console.log('Not found!');
       }
-      setIsCheckingRoomId(false);
     } catch (err) {
       console.log({ err });
       setIsCheckingRoomId(false);
