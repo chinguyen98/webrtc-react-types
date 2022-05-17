@@ -6,7 +6,7 @@ import {
   getDoc,
   onSnapshot,
   setDoc,
-  updateDoc
+  updateDoc,
 } from 'firebase/firestore';
 import { useEffect, useRef, useState, VFC } from 'react';
 import Button from '../../components/Button';
@@ -145,6 +145,8 @@ const MainPage: VFC = () => {
       };
       await setDoc(callDocRef, callDescription);
 
+      setCallingStatus('calling');
+
       /* Listen answer description and set to remote description */
       onSnapshot(callDocRef, (observe) => {
         const data: CALL_DESCRIPTION | undefined = observe.data();
@@ -248,6 +250,8 @@ const MainPage: VFC = () => {
     }
   };
 
+  const handleHangup = () => {};
+
   if (isMediaReady === null) {
     return <>Loading....</>;
   }
@@ -264,12 +268,21 @@ const MainPage: VFC = () => {
           <StreamVideo id={REMOTE_STREAM_ID} displayName="&nbsp;" />
         </div>
         <div className={styles['callId']}>{callId}</div>
-        <div style={{ width: '100px', marginTop: '5px' }}>
-          <Button onClick={startCall} value="Start call!" />
-        </div>
-        <div style={{ width: '100px', marginTop: '5px' }}>
-          <Button onClick={prepareJoinCall} value="Join call" />
-        </div>
+        {callingStatus === 'idle' && (
+          <>
+            <div style={{ width: '100px', marginTop: '5px' }}>
+              <Button onClick={startCall} value="Start call!" />
+            </div>
+            <div style={{ width: '100px', marginTop: '5px' }}>
+              <Button onClick={prepareJoinCall} value="Join call" />
+            </div>
+          </>
+        )}
+        {callingStatus === 'calling' && (
+          <div style={{ width: '100px', marginTop: '5px' }}>
+            <Button onClick={handleHangup} value="Hangup!" />
+          </div>
+        )}
       </div>
       <Modal
         visible={isPrepareJoinCallModalOpen}
