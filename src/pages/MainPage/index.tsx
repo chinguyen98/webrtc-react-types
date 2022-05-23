@@ -94,8 +94,8 @@ const MainPage: VFC = () => {
       );
       if (remoteVideo) {
         remoteVideo.srcObject = remoteStream.current;
-        pc.ontrack = (e) => {
-          e.streams[0].getTracks().forEach((track) => {
+        pc.ontrack = ({ streams, track }) => {
+          streams[0].getTracks().forEach((track) => {
             remoteStream.current?.addTrack(track);
           });
         };
